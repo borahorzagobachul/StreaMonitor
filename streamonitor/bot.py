@@ -280,11 +280,38 @@ class Bot(Thread):
         if not variant_m3u8.is_variant and len(sources) >= 1:
             self.logger.warn("Not variant playlist, can't select resolution")
             return None
+        
+        if variant_m3u8.media:
+            audios = []
+            for media in variant_m3u8.media:
+                if media.type == 'AUDIO':
+                    audios.append({
+                        'url': media.uri,
+                        'group_id': media.group_id
+                    })
+            if len(audios) > 0:
+                return sources, audios
+            
         return sources  # [(url, (width, height)),...]
 
     def getWantedResolutionPlaylist(self, url):
         try:
-            sources = self.getPlaylistVariants(url)
+            sources = None
+            audios = None
+            variants = self.getPlaylistVariants(url)
+            if type(variants) is tuple:
+                sources, audios = variants
+            else:
+                sources = variants
+
+            audio_url = ""
+            if audios is not None:
+                # In Chaturbate's implementation we can filter audio quality here by audios[].group_id,
+                # but the GROUP-ID field in the RFC8216 specification is quite permissive and allows for
+                # values that have no relation to quality. So it may not be prudent to do so.
+                # For now, we choose the first value, which should be the highest quality.
+                audio_url = audios[0]['url']
+
             if sources is None:
                 return None
 
@@ -331,10 +358,14 @@ class Bot(Thread):
                     frame_rate = f" {selected_source['frame_rate']}fps"
                 self.logger.info(f"Selected {selected_source['resolution'][0]}x{selected_source['resolution'][1]}{frame_rate} resolution")
             selected_source_url = selected_source['url']
-            if selected_source_url.startswith("https://"):
-                return selected_source_url
-            else:
-                return '/'.join(url.split('.m3u8')[0].split('/')[:-1]) + '/' + selected_source_url
+            if not selected_source_url.startswith("https://"):
+                selected_source_url = '/'.join(url.split('.m3u8')[0].split('/')[:-1]) + '/' + selected_source_url.split('/')[-1]
+                if audio_url:
+                    audio_url = '/'.join(url.split('.m3u8')[0].split('/')[:-1]) + '/' + audio_url.split('/')[-1]
+            
+            if audio_url:
+                return selected_source_url, audio_url
+            return selected_source_url
         except BaseException as e:
             self.logger.error("Can't get playlist, got some error: " + str(e))
             traceback.print_tb(e.__traceback__)
