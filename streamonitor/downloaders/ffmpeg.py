@@ -11,7 +11,7 @@ from parameters import DEBUG, SEGMENT_TIME, CONTAINER, FFMPEG_PATH, FFMPEG_READR
 def getVideoFfmpeg(self, url, filename):
     cmd = [
         FFMPEG_PATH,
-        '-user_agent', self.headers['User-Agent']
+        #'-user_agent', self.headers['User-Agent']
     ]
 
     if type(self.cookies) is requests.cookies.RequestsCookieJar:
@@ -31,6 +31,7 @@ def getVideoFfmpeg(self, url, filename):
         '-max_reload', '20',
         '-seg_max_retry', '20',
         '-m3u8_hold_counters', '20',
+        '-protocol_whitelist', 'file,https,tcp,tls',
         '-i', url,
         '-c:a', 'copy',
         '-c:v', 'copy',
